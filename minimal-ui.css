@@ -9,14 +9,17 @@
 
 /* Optional NetHack-style display. The regular interface remains unchanged. */
 body.minimal-ui .topbar{display:none}
+body.minimal-ui .world-label{top:24px;left:24px}
 body.minimal-ui .sidebar{top:24px;right:24px;bottom:auto;width:230px;gap:18px}
 body.minimal-ui .quest-panel,body.minimal-ui .sidebar-note{display:none}
 body.minimal-ui .map-panel{background:#101819e8;box-shadow:0 8px 24px #0006}
 body.minimal-ui .bottom-hud{left:24px;right:24px;bottom:14px;height:76px;padding:10px 18px;gap:20px}
 body.minimal-ui .bottom-hints{display:none}
-body.minimal-ui .portrait,body.minimal-ui .hero-name,body.minimal-ui .command-dock{display:none}
-body.minimal-ui .hero-status{min-width:240px;flex:1}
-body.minimal-ui .hero-info{width:100%}
+body.minimal-ui .hero-name,body.minimal-ui .command-dock{display:none}
+body.minimal-ui .portrait{display:block;width:44px;height:54px}
+body.minimal-ui .portrait>span{left:13px}
+body.minimal-ui .hero-status{min-width:285px;flex:1.15;gap:12px}
+body.minimal-ui .hero-info{width:auto;flex:1}
 body.minimal-ui .vitals{flex:1;justify-content:space-around;padding:3px 18px}
 body.minimal-ui .condition-strip{flex:1.25;min-width:310px}
 body.minimal-ui .condition-alignment{display:none}
@@ -28,9 +31,10 @@ body.minimal-ui .floor-title{top:108px}
 @media(max-width:760px){
  .condition-strip{border-left:0;padding-left:0;min-width:0;width:100%;gap:10px;justify-content:space-between}
  .condition-alignment{display:none}
+ body.minimal-ui .world-label{top:18px;left:14px}
  body.minimal-ui .sidebar{top:82px;right:14px;width:175px}
  body.minimal-ui .bottom-hud{left:10px;right:10px;bottom:8px;height:116px;padding:8px 12px;gap:6px;flex-wrap:wrap}
- body.minimal-ui .hero-status{min-width:145px;flex:1 1 45%;height:48px}
+ body.minimal-ui .hero-status{min-width:145px;flex:1 1 45%;height:56px}
  body.minimal-ui .vitals{flex:1 1 48%;padding:2px 4px}
  body.minimal-ui .condition-strip{flex:1 1 100%;min-width:0;gap:10px}
  body.minimal-ui .condition-indicator strong{font-size:10px}
