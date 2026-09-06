@@ -33,7 +33,7 @@ const monsterDef=name=>N.MONSTERS.find(m=>m.name===name);
 const distance=(a,b)=>Math.max(Math.abs(a.x-b.x),Math.abs(a.y-b.y));
 class Game {
  constructor(seed='YENDOR',role='Valkyrie',name='Adventurer'){
-  this.version=1;this.seed=String(seed);this.rng=new RNG(seed);this.uid=0;this.turn=1;this.depth=1;this.branch='Dungeons';this.levels={};this.messages=[];this.events=[];this.identified={};this.appearances={};this.genocided=[];this.dead=false;this.won=false;this.prayerTurn=-1000;this.autopickup=true;this.explore=false;this.conduct={kills:0,food:0,prayers:0};
+  this.version=1;this.seed=String(seed);this.rng=new RNG(seed);this.uid=0;this.turn=1;this.depth=1;this.branch='Dungeons';this.levels={};this.messages=[];this.events=[];this.identified={};this.appearances={};this.genocided=[];this.dead=false;this.won=false;this.prayerTurn=-1000;this.autopickup=true;this.autoOpenDoors=true;this.explore=false;this.conduct={kills:0,food:0,prayers:0};
   for(const cat of ['potion','scroll','wand','ring','spellbook','amulet']){let defs=N.ITEMS.filter(i=>i.category===cat&&i.appearance&&!(cat==='potion'&&i.name==='water')),shuffled=this.rng.shuffle(defs.map(i=>i.appearance));defs.forEach((d,i)=>this.appearances[cat+':'+d.name]=shuffled[i]);}this.appearances['potion:water']='clear';
   const r=roles[role]||roles.Valkyrie;
   this.player={id:0,x:0,y:0,hp:r.hp,maxHp:r.hp,pw:r.pw,maxPw:r.pw,role:roles[role]?role:'Valkyrie',name:name.slice(0,24)||'Adventurer',race:'Human',align:r.align,stats:[...r.stats],rank:r.rank,xp:0,level:1,gold:r.gold||0,nutrition:900,inventory:[],equipment:{},properties:[...(r.props||[])],status:{},spells:(r.spells||[]).map(n=>({name:n,knowledge:20000})),luck:0,facing:[0,1]};
@@ -82,7 +82,19 @@ class Game {
   const center=r=>({x:r.x+Math.floor(r.w/2),y:r.y+Math.floor(r.h/2)});
   for(let n=1;n<l.rooms.length;n++){let r=l.rooms[n],a=center(r),other=l.rooms.slice(0,n).sort((r1,r2)=>distance(a,center(r1))-distance(a,center(r2)))[0],b=center(other);let x=a.x,y=a.y;const step=(tx,ty)=>{while(x!==tx||y!==ty){x+=Math.sign(tx-x);if(x===tx)y+=Math.sign(ty-y);if(tiles[y][x].type==='rock')carve(x,y,'corridor');}};if(rng.next()<.5){step(b.x,y);step(b.x,b.y);}else{step(x,b.y);step(b.x,b.y);}}
   for(let y=1;y<H-1;y++)for(let x=1;x<W-1;x++)if(tiles[y][x].type==='rock'&&DIRS.some(([dx,dy])=>['floor','corridor'].includes(tiles[y+dy]?.[x+dx]?.type)))tiles[y][x].type='wall';
-  for(let r of l.rooms){let exits=[];for(let y=r.y-1;y<=r.y+r.h;y++)for(let x=r.x-1;x<=r.x+r.w;x++)if(tiles[y]?.[x]?.type==='corridor'&&((x===r.x-1||x===r.x+r.w)&&(y>=r.y&&y<r.y+r.h)||(y===r.y-1||y===r.y+r.h)&&(x>=r.x&&x<r.x+r.w)))exits.push(tiles[y][x]);for(let t of exits){t.type=rng.next()<.75?'door':'openDoor';t.locked=rng.next()<.2;if(depth>1&&rng.next()<.1)t.type='secret';}}
+  for(let r of l.rooms){let exits=[];for(let y=r.y-1;y<=r.y+r.h;y++)for(let x=r.x-1;x<=r.x+r.w;x++)if(tiles[y]?.[x]?.type==='corridor'&&((x===r.x-1||x===r.x+r.w)&&(y>=r.y&&y<r.y+r.h)||(y===r.y-1||y===r.y+r.h)&&(x>=r.x&&x<r.x+r.w)))exits.push(tiles[y][x]);
+   // NetHack rooms can have several exits, but adjacent door tiles read as a
+   // broken wall. Pick a spaced subset so no two generated doors touch.
+   const selected=[];for(const t of rng.shuffle(exits)){if(rng.next()>=.75)continue;if(DIRS.some(([dx,dy])=>tiles[t.y+dy]?.[t.x+dx]?.type==='door')||selected.some(s=>distance(s,t)<=1))continue;selected.push(t);}
+   for(const t of selected){t.type='door';t.locked=rng.next()<.2;if(depth>1&&rng.next()<.1)t.type='secret';}
+   // A corridor can connect two rooms at once; enforce the invariant globally.
+   for(const t of exits)if(t.type==='door'&&DIRS.some(([dx,dy])=>tiles[t.y+dy]?.[t.x+dx]?.type==='door'))t.type='openDoor';
+  }
+  // Final pass: treat both closed and open doorways as doors for spacing.
+  // If two still touch through a shared corridor edge, keep one doorway and
+  // turn the other tile back into corridor rather than creating a door row.
+  const doorway=t=>t&&['door','openDoor'].includes(t.type);
+  for(let y=1;y<H-1;y++)for(let x=1;x<W-1;x++){let t=tiles[y][x];if(!doorway(t))continue;let adjacent=DIRS.some(([dx,dy])=>doorway(tiles[y+dy]?.[x+dx]));if(adjacent)t.type='corridor';}
   l.up={x:first.x+3,y:first.y+4};tiles[l.up.y][l.up.x].type='up';const last=l.rooms.reduce((a,b)=>distance(center(a),l.up)>distance(center(b),l.up)?a:b);l.down=center(last);tiles[l.down.y][l.down.x].type='down';
   const available=(r= rng.pick(l.rooms))=>{for(let i=0;i<100;i++){let p={x:rng.int(r.x,r.x+r.w-1),y:rng.int(r.y,r.y+r.h-1)};if(tiles[p.y][p.x].type==='floor'&&distance(p,l.up)>2&&!l.boulders.some(b=>distance(b,p)===0)&&!l.monsters.some(m=>distance(m,p)===0))return p;}return null;};
   const feature=(type,r)=>{const p=available(r);if(p)tiles[p.y][p.x].type=type;return p;};
@@ -118,6 +130,7 @@ class Game {
   const m=this.monsterAt(x,y);if(m){if(mode==='safe')return false;if(m.tame){[m.x,m.y]=[p.x,p.y];p.x=x;p.y=y;this.log(`You swap places with ${m.name||m.kind}.`);this.endTurn();return true;}if(m.peaceful&&mode!=='fight'){this.log(`The ${m.kind} is peaceful. Use F + direction to attack deliberately.`);return false;}this.attack(m);this.endTurn();return true;}
   if(mode==='fight'){this.log('You swing at empty air.');this.endTurn();return true;}
   let b=this.level.boulders.find(b=>b.x===x&&b.y===y);if(b){if(dx&&dy){this.log('The boulder will not move diagonally.');return false;}if(!this.passable(x+dx,y+dy)||this.monsterAt(x+dx,y+dy)){this.log('The boulder will not move.');return false;}b.x+=dx;b.y+=dy;const trap=this.level.traps.find(t=>distance(t,b)===0&&t.type==='pit');if(trap){this.level.traps=this.level.traps.filter(t=>t!==trap);this.level.boulders=this.level.boulders.filter(j=>j!==b);this.log('The boulder fills the pit.');}else this.log('With great effort you move the boulder.');this.emit('stone');}
+  if(t.type==='door'&&this.autoOpenDoors&&!t.locked&&(!dx||!dy)){t.type='openDoor';this.log('The door opens as you walk through.');this.emit('door');}
   if(!this.passable(x,y)){if(t.type==='door')this.log('The door is closed. [o] Open · [k] Kick');return false;}
   if(['water','lava'].includes(t.type)&&!this.has('levitation')&&!this.has('water walking')){this.log('You stop at the edge. Crossing requires levitation or water walking.','warning');return false;}
   p.x=x;p.y=y;this.emit('step');if(mode!=='safe'&&this.autopickup)this.pickup(true);let trap=this.level.traps.find(t=>distance(t,p)===0);if(trap&&!this.has('levitation'))this.triggerTrap(trap);this.look();this.endTurn();return true;
@@ -248,6 +261,7 @@ class Game {
    for(let m of level.monsters)if(!monsterDef(m.kind)||!Number.isFinite(m.hp)||!Number.isInteger(m.x)||!Number.isInteger(m.y)||!level.tiles[m.y]?.[m.x])throw Error('Invalid monster state.');
   }
   if(!Number.isInteger(p.x)||!Number.isInteger(p.y)||!l.tiles[p.y]?.[p.x])throw Error('Invalid player position.');
+  if(d.autoOpenDoors===undefined)d.autoOpenDoors=true;
   let game=Object.assign(Object.create(Game.prototype),d);game.rng=new RNG(d.rng.state);game.events=[];game.updateVision();return game;
  }
 }
