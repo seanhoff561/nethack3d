@@ -1,6 +1,6 @@
 // Run: node tests/engine.cjs (or Get-Content tests/engine.cjs -Raw | node).
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
-for(const f of ['catalog.js','game.js'])vm.runInThisContext(fs.readFileSync('src/'+f,'utf8'),{filename:f});
+for(const f of ['catalog.js','world.js','game.js','systems.js','interactions.js','quests.js','equipment.js','save-validation.js'])vm.runInThisContext(fs.readFileSync('src/'+f,'utf8'),{filename:f});
 let passed=0;function test(name,fn){try{fn();passed++;console.log('PASS '+name);}catch(e){console.error('FAIL '+name);throw e;}}
 function arena(role='Valkyrie'){const g=new NH.Game('test',role);g.level.monsters=[];g.level.items=[];g.level.traps=[];g.level.boulders=[];g.level.rooms=[];for(let t of g.level.tiles.flat()){t.type=t.x>=2&&t.x<=10&&t.y>=2&&t.y<=10?'floor':'wall';t.seen=false;}g.player.x=5;g.player.y=5;g.updateVision();return g;}
 test('Reference catalog includes all 381 standard monster records',()=>{assert.equal(NH.MONSTERS.length,381);assert.equal(new Set(NH.MONSTERS.map(m=>m.name+":"+m.family)).size,381);assert.equal(NH.monsterDef('goblin').ac,10);assert.equal(NH.monsterDef('killer bee').speed,18);assert.equal(NH.lookup('food ration','food').nutrition,800);assert.equal(NH.lookup('gray dragon scale mail','armor').ac,9);assert.equal(NH.lookup('force bolt','spellbook').level,1);});

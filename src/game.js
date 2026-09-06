@@ -32,20 +32,20 @@ const lookup=(name,cat)=>N.ITEMS.find(i=>i.name===name&&(!cat||i.category===cat)
 const monsterDef=name=>N.MONSTERS.find(m=>m.name===name);
 const distance=(a,b)=>Math.max(Math.abs(a.x-b.x),Math.abs(a.y-b.y));
 class Game {
- constructor(seed='YENDOR',role='Valkyrie',name='Adventurer'){
+ constructor(seed='YENDOR',role='Valkyrie',name='Adventurer',options={}){
   this.version=1;this.seed=String(seed);this.rng=new RNG(seed);this.uid=0;this.turn=1;this.depth=1;this.branch='Dungeons';this.levels={};this.messages=[];this.events=[];this.identified={};this.appearances={};this.genocided=[];this.dead=false;this.won=false;this.prayerTurn=-1000;this.autopickup=true;this.autoOpenDoors=true;this.explore=false;this.conduct={kills:0,food:0,prayers:0};
   for(const cat of ['potion','scroll','wand','ring','spellbook','amulet']){let defs=N.ITEMS.filter(i=>i.category===cat&&i.appearance&&!(cat==='potion'&&i.name==='water')),shuffled=this.rng.shuffle(defs.map(i=>i.appearance));defs.forEach((d,i)=>this.appearances[cat+':'+d.name]=shuffled[i]);}this.appearances['potion:water']='clear';
   const r=roles[role]||roles.Valkyrie;
   this.player={id:0,x:0,y:0,hp:r.hp,maxHp:r.hp,pw:r.pw,maxPw:r.pw,role:roles[role]?role:'Valkyrie',name:name.slice(0,24)||'Adventurer',race:'Human',align:r.align,stats:[...r.stats],rank:r.rank,xp:0,level:1,gold:r.gold||0,nutrition:900,inventory:[],equipment:{},properties:[...(r.props||[])],status:{},spells:(r.spells||[]).map(n=>({name:n,knowledge:20000})),luck:0,facing:[0,1]};
   for(const [n,c,en=0,count=1]of r.gear){let it=this.createItem(n,c,{enchant:en,count,known:true,buc:0,bucKnown:true});this.addItem(it);if(c==='weapon'&&!this.player.equipment.weapon)this.player.equipment.weapon=it.id;if(c==='armor')this.player.equipment[lookup(n,c)?.slot||'body']=it.id;}
-  this.getLevel();const p=this.level.up;this.player.x=p.x;this.player.y=p.y;
-  const petTile=DIRS.map(([dx,dy])=>({x:p.x+dx,y:p.y+dy})).find(p=>this.passable(p.x,p.y));this.spawn('little dog',petTile.x,petTile.y,{tame:true,name:'Hachi'});
-  this.log(`Welcome, ${this.player.name}. You are a ${this.player.align.toLowerCase()} human ${this.player.role.toLowerCase()}.`,'story');this.log('You enter the Dungeons of Doom. Hachi follows at your heels.','story');this.updateVision();
+  this.configureCharacter(options);this.getLevel();const p=this.level.up;this.player.x=p.x;this.player.y=p.y;
+  const petTile=DIRS.map(([dx,dy])=>({x:p.x+dx,y:p.y+dy})).find(p=>this.passable(p.x,p.y));if(petTile)this.spawn(role==='Knight'?'pony':role==='Wizard'?'kitten':'little dog',petTile.x,petTile.y,{tame:true,name:'Hachi'});
+  this.log(`Welcome, ${this.player.name}. You are a ${this.player.align.toLowerCase()} ${this.player.race.toLowerCase()} ${this.player.role.toLowerCase()}.`,'story');this.log('You enter the Dungeons of Doom. Hachi follows at your heels.','story');this.updateVision();
  }
  get key(){return this.branch+':'+this.depth;}
  get level(){return this.levels[this.key];}
  get wornIds(){return [...new Set(Object.entries(this.player.equipment).filter(([slot])=>!['weapon','swap','quiver'].includes(slot)).map(([,id])=>id))];}
- get ac(){let ac=10;for(const id of this.wornIds){let i=this.player.inventory.find(i=>i.id===id),d=i&&this.def(i);if(d?.category==='armor')ac-=d.ac+(i.enchant||0);if(d?.name==='protection')ac-=i.enchant||1;}if(this.player.role==='Monk'&&!this.player.equipment.body)ac-=2+Math.floor(this.player.level/3);return ac-(this.player.status.protection?2:0);}
+ get ac(){let ac=10;for(const id of this.wornIds){let i=this.player.inventory.find(i=>i.id===id),d=i&&this.def(i);if(d?.category==='armor')ac-=d.ac+(i.enchant||0);if(d?.name==='protection')ac-=i.enchant||0;}if(this.player.role==='Monk'&&!this.player.equipment.body)ac-=2+Math.floor(this.player.level/3);return ac-(this.player.status.protection?2:0);}
  get hunger(){let n=this.player.nutrition;return n>1000?'Satiated':n>150?'Not hungry':n>50?'Hungry':n>0?'Weak':'Fainting';}
  get weight(){return this.player.inventory.reduce((w,i)=>w+(this.def(i).weight||0)*i.count,0)+Math.floor(this.player.gold/100);}
  get capacity(){return Math.min(1000,25*(this.player.stats[0]+this.player.stats[2])+50);}
@@ -63,7 +63,7 @@ class Game {
   if(i.bucKnown)name=(i.buc===1?'blessed ':i.buc===-1?'cursed ':'uncursed ')+name;
   return(i.count>1?i.count+' × ':'')+name;
  }
- addItem(i){let old=this.player.inventory.find(j=>j.name===i.name&&j.category===i.category&&j.buc===i.buc&&j.enchant===i.enchant&&j.known===i.known&&!i.unpaid&&!j.unpaid&&!i.corpse&&['food','potion','scroll','gem'].includes(i.category));if(old){old.count+=i.count;return old;}let letters='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ',used=this.player.inventory.map(i=>i.letter);i.letter=letters.split('').find(c=>!used.includes(c));if(!i.letter)return null;this.player.inventory.push(i);return i;}
+ addItem(i){let old=this.player.inventory.find(j=>j.name===i.name&&j.category===i.category&&j.buc===i.buc&&j.enchant===i.enchant&&j.known===i.known&&!i.unpaid&&!j.unpaid&&!i.corpse&&!i.artifact&&!j.artifact&&!i.contents&&!j.contents&&i.named===j.named&&i.bucKnown===j.bucKnown&&i.diluted===j.diluted&&i.tinMonster===j.tinMonster&&['food','potion','scroll','gem'].includes(i.category));if(old){old.count+=i.count;return old;}let letters='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ',used=this.player.inventory.map(i=>i.letter);i.letter=letters.split('').find(c=>!used.includes(c));if(!i.letter)return null;this.player.inventory.push(i);return i;}
  consume(i){if(--i.count<=0){this.player.inventory=this.player.inventory.filter(j=>j.id!==i.id);for(const k in this.player.equipment)if(this.player.equipment[k]===i.id)delete this.player.equipment[k];}}
  identify(i){i.known=true;this.identified[i.category+':'+i.name]=true;}
  tile(x,y){return this.level.tiles[y]?.[x];}
@@ -72,50 +72,7 @@ class Game {
  lineOfSight(x0,y0,x1,y1){let dx=Math.abs(x1-x0),dy=-Math.abs(y1-y0),sx=x0<x1?1:-1,sy=y0<y1?1:-1,err=dx+dy;for(let i=0;i<100;i++){if(x0===x1&&y0===y1)return true;const e=2*err;if(e>=dy){err+=dy;x0+=sx;}if(e<=dx){err+=dx;y0+=sy;}if(x0===x1&&y0===y1)return true;if(this.blockedSight(x0,y0))return false;}return false;}
  updateVision(){const p=this.player,l=this.level;let room=l.rooms.find(r=>p.x>=r.x&&p.x<r.x+r.w&&p.y>=r.y&&p.y<r.y+r.h);for(let row of l.tiles)for(let t of row){t.visible=false;if(this.has('blindness')&&distance(p,t)>1)continue;const radius=this.has('light')?13:8;if(distance(p,t)<=radius||(room?.lit&&t.room===room.id)){if(this.lineOfSight(p.x,p.y,t.x,t.y)){t.visible=true;t.seen=true;}}}}
  getLevel(){if(!this.levels[this.key])this.levels[this.key]=this.generate(this.depth,this.branch);return this.level;}
- generate(depth,branch){
-  const rng=this.rng,W=80,H=21,tiles=Array.from({length:H},(_,y)=>Array.from({length:W},(_,x)=>({x,y,type:'rock',seen:false,visible:false})));let l={width:W,height:H,tiles,rooms:[],monsters:[],items:[],boulders:[],traps:[],engravings:{},depth,branch};
-  const carve=(x,y,type='floor',id)=>{if(x>0&&x<W-1&&y>0&&y<H-1)Object.assign(tiles[y][x],{type,room:id});};
-  // Room placement and corridor routing are deterministic, but not NetHack's C algorithm.
-  let first={x:rng.int(3,8),y:rng.int(5,8),w:11,h:8,id:0,lit:true};l.rooms.push(first);
-  for(let tries=0;tries<300&&l.rooms.length<9;tries++){let w=rng.int(5,11),h=rng.int(4,8),r={x:rng.int(2,W-w-3),y:rng.int(2,H-h-3),w,h,id:l.rooms.length,lit:rng.next()>.15};if(l.rooms.every(a=>r.x+r.w+3<a.x||a.x+a.w+3<r.x||r.y+r.h+2<a.y||a.y+a.h+2<r.y))l.rooms.push(r);}
-  for(let r of l.rooms)for(let y=r.y;y<r.y+r.h;y++)for(let x=r.x;x<r.x+r.w;x++)carve(x,y,'floor',r.id);
-  const center=r=>({x:r.x+Math.floor(r.w/2),y:r.y+Math.floor(r.h/2)});
-  for(let n=1;n<l.rooms.length;n++){let r=l.rooms[n],a=center(r),other=l.rooms.slice(0,n).sort((r1,r2)=>distance(a,center(r1))-distance(a,center(r2)))[0],b=center(other);let x=a.x,y=a.y;const step=(tx,ty)=>{while(x!==tx||y!==ty){x+=Math.sign(tx-x);if(x===tx)y+=Math.sign(ty-y);if(tiles[y][x].type==='rock')carve(x,y,'corridor');}};if(rng.next()<.5){step(b.x,y);step(b.x,b.y);}else{step(x,b.y);step(b.x,b.y);}}
-  for(let y=1;y<H-1;y++)for(let x=1;x<W-1;x++)if(tiles[y][x].type==='rock'&&DIRS.some(([dx,dy])=>['floor','corridor'].includes(tiles[y+dy]?.[x+dx]?.type)))tiles[y][x].type='wall';
-  for(let r of l.rooms){let exits=[];for(let y=r.y-1;y<=r.y+r.h;y++)for(let x=r.x-1;x<=r.x+r.w;x++)if(tiles[y]?.[x]?.type==='corridor'&&((x===r.x-1||x===r.x+r.w)&&(y>=r.y&&y<r.y+r.h)||(y===r.y-1||y===r.y+r.h)&&(x>=r.x&&x<r.x+r.w)))exits.push(tiles[y][x]);
-   // NetHack rooms can have several exits, but adjacent door tiles read as a
-   // broken wall. Pick a spaced subset so no two generated doors touch.
-   const selected=[];for(const t of rng.shuffle(exits)){if(rng.next()>=.75)continue;if(DIRS.some(([dx,dy])=>tiles[t.y+dy]?.[t.x+dx]?.type==='door')||selected.some(s=>distance(s,t)<=1))continue;selected.push(t);}
-   for(const t of selected){t.type='door';t.locked=rng.next()<.2;if(depth>1&&rng.next()<.1)t.type='secret';}
-   // A corridor can connect two rooms at once; enforce the invariant globally.
-   for(const t of exits)if(t.type==='door'&&DIRS.some(([dx,dy])=>tiles[t.y+dy]?.[t.x+dx]?.type==='door'))t.type='openDoor';
-  }
-  // Final pass: treat both closed and open doorways as doors for spacing.
-  // If two still touch through a shared corridor edge, keep one doorway and
-  // turn the other tile back into corridor rather than creating a door row.
-  const doorway=t=>t&&['door','openDoor'].includes(t.type);
-  for(let y=1;y<H-1;y++)for(let x=1;x<W-1;x++){let t=tiles[y][x];if(!doorway(t))continue;let adjacent=DIRS.some(([dx,dy])=>doorway(tiles[y+dy]?.[x+dx]));if(adjacent)t.type='corridor';}
-  l.up={x:first.x+3,y:first.y+4};tiles[l.up.y][l.up.x].type='up';const last=l.rooms.reduce((a,b)=>distance(center(a),l.up)>distance(center(b),l.up)?a:b);l.down=center(last);tiles[l.down.y][l.down.x].type='down';
-  const available=(r= rng.pick(l.rooms))=>{for(let i=0;i<100;i++){let p={x:rng.int(r.x,r.x+r.w-1),y:rng.int(r.y,r.y+r.h-1)};if(tiles[p.y][p.x].type==='floor'&&distance(p,l.up)>2&&!l.boulders.some(b=>distance(b,p)===0)&&!l.monsters.some(m=>distance(m,p)===0))return p;}return null;};
-  const feature=(type,r)=>{const p=available(r);if(p)tiles[p.y][p.x].type=type;return p;};
-  // An architectural arrival room, still generated from the run's seed.
-  let fp={x:first.x+7,y:first.y+2};tiles[fp.y][fp.x].type='fountain';
-  for(let k=0;k<l.rooms.length;k++){let r=l.rooms[k];if(k&&rng.next()<.25)feature('altar',r);if(rng.next()<.35)feature('grave',r);if(rng.next()<.15)feature('sink',r);if(depth>3&&rng.next()<.15)feature('throne',r);if(depth>2&&rng.next()<.15)feature('water',r);
-   const items=rng.int(1,3);for(let j=0;j<items;j++){let p=available(r);if(p)l.items.push({...p,item:this.randomItem()});}
-   if(k>0){for(let j=0;j<rng.int(1,2+Math.floor(depth/5));j++){let p=available(r);if(p){let def=this.randomMonster(depth);l.monsters.push(this.makeMonster(def,p.x,p.y));}}}
-   if(k>0&&rng.next()<.65){let p=available(r);if(p)l.traps.push({...p,type:rng.pick(['pit','arrow','dart','bear trap','sleeping gas','teleport','web',...(depth>5?['fire','rust','trapdoor']:[])]),seen:false});}
-   if(k&&rng.next()<.25){let p=available(r);if(p)l.boulders.push({...p,id:++this.uid});}
-  }
-  // Place an early encounter beyond the safe arrival radius.
-  let p={x:first.x+9,y:first.y+6};l.monsters.push(this.makeMonster(monsterDef(depth===1?'goblin':'hobgoblin'),p.x,p.y));
-  l.items.push({x:first.x+5,y:first.y+5,item:this.createItem('gold piece','gold',{count:rng.int(8,30),buc:0,known:true})});
-  if(depth%4===2&&l.rooms.length>3){let r=l.rooms[2];r.shop=true;r.lit=true;const p=available(r);if(p)l.monsters.push(this.makeMonster(monsterDef('shopkeeper'),p.x,p.y,{peaceful:true,shopkeeper:true}));for(let i=0;i<5;i++){let p=available(r);if(p){let item=this.randomItem();item.unpaid=true;item.price=Math.max(5,this.def(item).cost*2);l.items.push({...p,item});}}}
-  if(branch==='Dungeons'&&depth===3){let p=feature('branch',l.rooms[1]);l.branchStair=p;}
-  if(branch==='Mines'){for(let r of l.rooms){r.lit=depth<4;for(let i=0;i<6;i++){let p=available(r);if(p&&rng.next()<.35)l.boulders.push({...p,id:++this.uid});}}}
-  if(branch==='Dungeons'&&depth===30){tiles[l.down.y][l.down.x].type='altar';l.items.push({...l.down,item:this.createItem('Amulet of Yendor','amulet',{known:true,buc:0})});l.monsters.push(this.makeMonster(monsterDef('Wizard of Yendor'),l.down.x+1,l.down.y));}
-  if(branch==='Mines'&&depth===8){tiles[l.down.y][l.down.x].type='fountain';l.items.push({...l.down,item:this.createItem('luckstone','gem',{buc:1})});}
-  return l;
- }
+ generate(depth,branch){return N.generateLevel(this,depth,branch);}
  randomItem(){const cats=['food','weapon','armor','potion','scroll','wand','ring','gem','tool','spellbook'];const cat=this.rng.weighted(cats,c=>({food:20,weapon:10,armor:10,potion:16,scroll:16,wand:4,ring:3,gem:8,tool:8,spellbook:5})[c]);const defs=N.ITEMS.filter(i=>i.category===cat&&i.prob>0);let d=this.rng.weighted(defs,d=>d.prob);return this.createItem(d.name,d.category,{count:d.ammo?this.rng.int(3,10):1});}
  randomMonster(depth){let defs=N.MONSTERS.filter(m=>m.frequency>0&&!/G_NOGEN|G_UNIQ|G_HELL/.test(m.generation)&&m.difficulty<=Math.max(2,Math.floor((depth+(this.player?.level||1))/2)+1)&&m.difficulty>=Math.floor(depth/6)&&!this.genocided.includes(m.name));return this.rng.weighted(defs,m=>m.frequency)||monsterDef('jackal');}
  makeMonster(d,x,y,extra={}){const hp=Math.max(1,this.rng.dice(Math.max(1,d.level),d.level?8:4));return{id:++this.uid,kind:d.name,x,y,hp,maxHp:hp,energy:0,asleep:0,facing:[0,1],...extra};}
@@ -136,25 +93,25 @@ class Game {
   p.x=x;p.y=y;this.emit('step');if(mode!=='safe'&&this.autopickup)this.pickup(true);let trap=this.level.traps.find(t=>distance(t,p)===0);if(trap&&!this.has('levitation'))this.triggerTrap(trap);this.look();this.endTurn();return true;
  }
  attack(m,bonus=0){let p=this.player,d=monsterDef(m.kind),weapon=p.inventory.find(i=>i.id===p.equipment.weapon),w=weapon?this.def(weapon):null;if(m.peaceful){m.peaceful=false;p.luck-=2;}delete this.level.engravings[p.x+','+p.y];
-  let tohit=1+p.level+d.ac+(weapon?.enchant||0)+(w?.hit||0)+(p.stats[0]>=17?2:0)+(p.stats[1]>=16?2:0)+bonus;if(this.rng.int(1,20)>tohit){this.log(`You miss the ${m.kind}.`);this.emit('miss',{x:m.x,y:m.y});return;}
-  let sides=w?.damage||(p.role==='Monk'?8:2);let damage=this.rng.dice(1,sides)+(weapon?.enchant||0)+(p.stats[0]>=18?2:p.stats[0]>=16?1:0);if(w?.name==='two-handed sword')damage+=this.rng.dice(1,6);damage=Math.max(1,damage);m.hp-=damage;this.log(`You hit the ${m.kind} for ${damage}.`,'combat');this.emit('hit',{x:m.x,y:m.y,value:damage,id:m.id});if(m.hp<=0)this.kill(m);else{let passive=d.attacks.find(a=>a.type==='NONE');if(passive)this.applyAttackEffect(passive,d);}
+  let tohit=1+p.level+d.ac+(weapon?.enchant||0)+(w?.hit||0)+(this.attribute(0)>=17?2:0)+(this.attribute(1)>=16?2:0)+bonus;if(this.rng.int(1,20)>tohit){this.log(`You miss the ${m.kind}.`);this.emit('miss',{x:m.x,y:m.y});return;}
+  let sides=w?.damage||(p.role==='Monk'?8:2);let damage=this.rng.dice(1,sides)+(weapon?.enchant||0)+(this.attribute(0)>=18?2:this.attribute(0)>=16?1:0);if(w?.name==='two-handed sword')damage+=this.rng.dice(1,6);damage=Math.max(1,damage);m.hp-=damage;this.log(`You hit the ${m.kind} for ${damage}.`,'combat');this.emit('hit',{x:m.x,y:m.y,value:damage,id:m.id});if(m.hp<=0)this.kill(m);else{let passive=d.attacks.find(a=>a.type==='NONE');if(passive)this.applyAttackEffect(passive,d);}
  }
  kill(m,pet=false){m.hp=0;let d=monsterDef(m.kind);this.log(`${pet?'Hachi kills':'You kill'} the ${m.kind}!`,'good');this.emit('kill',{x:m.x,y:m.y});if(!pet){this.conduct.kills++;this.player.xp+=Math.max(1,d.level*d.level+1+(10-d.ac));this.checkLevel();}if(!/G_NOCORPSE/.test(d.generation)&&this.rng.next()<.65)this.level.items.push({x:m.x,y:m.y,item:this.createItem('corpse','food',{corpse:m.kind,age:this.turn,nutrition:d.nutrition,weight:d.weight,known:true})});this.level.monsters=this.level.monsters.filter(i=>i.hp>0);}
  checkLevel(){const p=this.player;const threshold=p.level<10?10*2**p.level:10000*(p.level-8);if(p.xp>=threshold&&p.level<30){p.level++;let hp=this.rng.int(4,10);p.maxHp+=hp;p.hp+=hp;p.maxPw+=this.rng.int(2,5);p.pw=p.maxPw;this.log(`Welcome to experience level ${p.level}!`,'good');this.emit('levelup');if(p.role==='Valkyrie'&&p.level>=7&&!p.properties.includes('speed'))p.properties.push('speed');}}
  damage(n,cause){this.player.hp-=Math.max(0,n);this.emit('hurt',{value:n,x:this.player.x,y:this.player.y});if(this.player.hp<=0){const life=this.player.inventory.find(i=>i.name==='amulet of life saving'&&Object.values(this.player.equipment).includes(i.id));if(life){this.consume(life);this.player.hp=this.player.maxHp;this.player.nutrition=900;this.player.status={};this.log('Your amulet glows, then crumbles. You return to life!','good');}else{this.dead=true;this.deathCause=cause;this.log(`You die from ${cause}.`,'danger');this.emit('death');}}}
  applyAttackEffect(a,d){let map={FIRE:'MR_FIRE',COLD:'MR_COLD',ELEC:'MR_ELEC',DRST:'MR_POISON',ACID:'MR_ACID',SLEE:'MR_SLEEP',STON:'MR_STONE'};if(map[a.effect]&&this.has(map[a.effect])){this.log(`You resist the ${d.name}'s attack.`);return;}let n=this.rng.dice(a.dice,a.sides);if(a.effect==='SLEE'||a.effect==='PLYS'){if(!this.has('free action'))this.player.status.paralysis=this.rng.int(2,4);}else if(a.effect==='STON')this.player.status.petrifying=5;else if(a.effect==='DRST'&&this.rng.next()<.3){this.player.stats[0]=Math.max(3,this.player.stats[0]-1);this.log('You feel weaker.','warning');}else if(a.effect==='CONF')this.player.status.confusion=10;else if(a.effect==='BLND')this.player.status.blindness=10;else if(a.effect==='DRLI'){this.player.maxHp=Math.max(1,this.player.maxHp-2);this.player.level=Math.max(1,this.player.level-1);}else if(a.effect==='RUST'){const armor=this.player.inventory.find(i=>i.id===this.player.equipment.body);if(armor)armor.enchant=Math.max(-3,armor.enchant-1);}this.damage(n,d.name);}
- monsterTurn(){const p=this.player;for(let m of [...this.level.monsters]){if(this.dead)break;if(m.hp<=0)continue;if(m.asleep>0){m.asleep--;continue;}const d=monsterDef(m.kind);m.energy+=(d.speed||0)/(this.has('speed')?1.5:1);let acts=Math.min(3,Math.floor(m.energy/12));m.energy%=12;
+ monsterTurn(){const p=this.player;for(let m of [...this.level.monsters]){if(this.dead)break;if(m.hp<=0)continue;if(m.asleep>0){m.asleep--;continue;}const d=monsterDef(m.kind);m.energy+=(d.speed||0)*(m.hasted>0?1.5:1)*(m.slowed>0?.5:1)/((this.has('speed')?1.5:1)*({'':1,Burdened:.75,Stressed:.5,Strained:.25,Overtaxed:.125,Overloaded:1}[this.encumbrance]));let acts=Math.min(8,Math.floor(m.energy/12));m.energy%=12;
   for(let act=0;act<acts;act++){if(m.tame){let enemy=this.level.monsters.find(e=>!e.tame&&!e.peaceful&&distance(m,e)<=1);if(enemy){let n=this.rng.dice(1,6);enemy.hp-=n;this.log(`${m.name||m.kind} bites the ${enemy.kind}.`,'combat');this.emit('hit',{x:enemy.x,y:enemy.y,value:n});if(enemy.hp<=0)this.kill(enemy,true);continue;}
    let food=this.level.items.find(o=>distance(o,m)<=1&&o.item.category==='food'&&(o.item.corpse||o.item.name==='tripe ration'));if(food){this.level.items=this.level.items.filter(o=>o!==food);m.hp=Math.min(m.maxHp,m.hp+3);continue;}if(distance(m,p)<2)continue;
   }else if(m.peaceful)continue;
-  if(!m.tame&&distance(m,p)<=1){if(this.level.engravings[p.x+','+p.y]==='Elbereth'&&!/HUMAN|ELF|ANGEL/.test(d.family)&&this.rng.next()<.7){this.log(`The ${m.kind} turns away from the engraving.`);continue;}for(let a of d.attacks.filter(a=>a.type!=='NONE')){if(this.dead)break;if(this.rng.int(1,20)<=10+this.ac+d.level){this.log(`The ${m.kind} ${a.type==='BITE'?'bites':'hits'}!`,'danger');this.applyAttackEffect(a,d);}else this.log(`The ${m.kind} misses.`);}continue;}
+  if(!m.tame&&distance(m,p)<=1&&!(m.fleeing>0)){if(this.level.engravings[p.x+','+p.y]==='Elbereth'&&!/HUMAN|ELF|ANGEL/.test(d.family)&&this.rng.next()<.7){this.log(`The ${m.kind} turns away from the engraving.`);continue;}for(let a of d.attacks.filter(a=>a.type!=='NONE'&&!(m.cancelled&&a.effect!=='PHYS'))){if(this.dead)break;if(this.rng.int(1,20)<=10+this.ac+d.level-(this.has('displacement')?2:0)){this.log(`The ${m.kind} ${a.type==='BITE'?'bites':'hits'}!`,'danger');this.applyAttackEffect(a,d);}else this.log(`The ${m.kind} misses.`);}continue;}
   if(!m.tame&&(distance(m,p)>14||!this.lineOfSight(m.x,m.y,p.x,p.y)&&distance(m,p)>5))continue;
   let candidates=DIRS.map(([dx,dy])=>({x:m.x+dx,y:m.y+dy,dx,dy})).filter(t=>this.passable(t.x,t.y)&&!this.monsterAt(t.x,t.y)&&distance(t,p)>0&&!(t.dx&&t.dy&&(!this.passable(m.x+t.dx,m.y)&&!this.passable(m.x,m.y+t.dy)))&&!(t.dx&&t.dy&&['door','openDoor'].includes(this.tile(t.x,t.y).type)));
-  candidates.sort((a,b)=>distance(a,p)-distance(b,p));let next=candidates[0];if(next){m.x=next.x;m.y=next.y;m.facing=[next.dx,next.dy];}
+  candidates.sort((a,b)=>(distance(a,p)-distance(b,p))*(m.fleeing>0?-1:1));if(m.confused>0){m.confused--;candidates=this.rng.shuffle(candidates);}let next=candidates[0];if(next){m.x=next.x;m.y=next.y;m.facing=[next.dx,next.dy];}
   }
  }}
  endTurn(){if(this.dead||this.won)return;this.turn++;const p=this.player;p.nutrition-=this.has('slow digestion')?(this.turn%20===0?1:0):1;if(this.encumbrance)p.nutrition--;for(let s of p.spells)s.knowledge=Math.max(0,s.knowledge-1);
-  for(let k of Object.keys(p.status)){if(k==='trapped')continue;if(--p.status[k]<=0){delete p.status[k];if(k==='petrifying'){this.damage(p.hp,'petrification');return;}this.log(`Your ${k} wears off.`);}}
+  for(let k of Object.keys(p.status)){if(k==='trapped')continue;if(--p.status[k]<=0){delete p.status[k];if(k==='polymorphed')delete p.form;if(k==='sickness'){this.damage(p.hp,'terminal illness');return;}if(k==='petrifying'){this.damage(p.hp,'petrification');return;}this.log(`Your ${k} wears off.`);}}
   if(p.nutrition<-(200+20*p.stats[2])){this.damage(p.hp,'starvation');return;}if(p.nutrition<=0&&this.turn%5===0){p.status.paralysis=2;this.log('You faint from lack of food.','danger');}
   if(this.turn%Math.max(3,22-p.level*2)===0||this.has('regeneration'))p.hp=Math.min(p.maxHp,p.hp+1);if(this.turn%10===0)p.pw=Math.min(p.maxPw,p.pw+1);
   this.monsterTurn();if(this.has('searching'))this.search(true);this.level.items=this.level.items.filter(o=>!o.item.corpse||this.turn-o.item.age<250);this.updateVision();
@@ -171,7 +128,7 @@ class Game {
   else{if(t.type!=='openDoor'){this.log('This door is already closed.');return false;}if(this.monsterAt(t.x,t.y)||this.level.items.some(o=>distance(o,t)===0)){this.log('Something is in the way.');return false;}t.type='door';this.log('The door closes.');}this.emit('door');this.endTurn();return true;
  }
  search(passive=false){let found=false;for(const [dx,dy] of [[0,0],...DIRS]){let t=this.tile(this.player.x+dx,this.player.y+dy);if(t?.type==='secret'&&this.rng.next()<.15){t.type='door';this.log('You find a hidden door!','good');found=true;}let trap=this.level.traps.find(t=>t.x===this.player.x+dx&&t.y===this.player.y+dy&&!t.seen);if(trap&&this.rng.next()<.15){trap.seen=true;this.log(`You discover a ${trap.type}!`,'warning');found=true;}}if(!passive){if(!found)this.log('You search the surroundings.');this.endTurn();}}
- triggerTrap(t){t.seen=true;this.log(`You trigger a ${t.type}!`,'danger');this.emit('trap',{x:t.x,y:t.y});switch(t.type){case'pit':this.damage(this.rng.dice(1,6),'a pit');this.player.status.trapped=3;break;case'bear trap':this.damage(this.rng.dice(2,4),'a bear trap');this.player.status.trapped=5;break;case'web':this.player.status.trapped=4;break;case'sleeping gas':if(!this.has('MR_SLEEP'))this.player.status.paralysis=4;break;case'teleport':this.teleport();break;case'fire':if(!this.has('MR_FIRE'))this.damage(this.rng.dice(2,4),'a fire trap');break;case'rust':{let i=this.player.inventory.find(i=>i.id===this.player.equipment.body);if(i)i.enchant--;break;}case'trapdoor':this.stairs(1,true);break;default:this.damage(this.rng.dice(1,6),'a '+t.type+' trap');}}
+ triggerTrap(t){t.seen=true;this.log(`You trigger a ${t.type}!`,'danger');this.emit('trap',{x:t.x,y:t.y});switch(t.type){case'land mine':this.level.traps=this.level.traps.filter(j=>j!==t);this.damage(this.rng.dice(3,6),'a land mine');break;case'pit':this.damage(this.rng.dice(1,6),'a pit');this.player.status.trapped=3;break;case'bear trap':this.damage(this.rng.dice(2,4),'a bear trap');this.player.status.trapped=5;break;case'web':this.player.status.trapped=4;break;case'sleeping gas':if(!this.has('MR_SLEEP'))this.player.status.paralysis=4;break;case'teleport':this.teleport();break;case'fire':if(!this.has('MR_FIRE'))this.damage(this.rng.dice(2,4),'a fire trap');break;case'rust':{let i=this.player.inventory.find(i=>i.id===this.player.equipment.body);if(i)i.enchant--;break;}case'trapdoor':this.stairs(1,true);break;default:this.damage(this.rng.dice(1,6),'a '+t.type+' trap');}}
  teleport(){const t=this.rng.pick(this.level.tiles.flat().filter(t=>this.passable(t.x,t.y)&&!this.monsterAt(t.x,t.y)&&!['water','lava'].includes(t.type)));if(t){this.player.x=t.x;this.player.y=t.y;this.log('You materialize somewhere else.');this.emit('magic',{x:t.x,y:t.y});this.updateVision();}}
  stairs(dir,forced=false){let t=this.tile(this.player.x,this.player.y);if(this.has('levitation')){this.log('You are floating above the stairs.');return false;}if(!forced&&!(dir===1&&['down','branch'].includes(t.type)||dir===-1&&t.type==='up')){this.log(`There are no stairs ${dir===1?'down':'up'} here.`);return false;}
   if(this.depth===1&&this.branch==='Dungeons'&&dir===-1){if(this.player.inventory.some(i=>i.name==='Amulet of Yendor')){this.won=true;this.log('You escape with the Amulet of Yendor!','good');this.emit('victory');}else this.log('Your journey has only just begun. The Amulet lies below.');return false;}
@@ -251,10 +208,10 @@ class Game {
  static restore(text){
   if(typeof text!=='string'||text.length>24000000)throw Error('Invalid save size.');
   let d=JSON.parse(text);if(d.version!==1||!d.player||!d.levels||!d.rng||!Number.isFinite(d.rng.state))throw Error('Incompatible save file.');
-  if(['__proto__','prototype','constructor'].some(k=>Object.hasOwn(d,k))||!roles[d.player.role]||!Number.isInteger(d.turn)||d.turn<1||!['Dungeons','Mines'].includes(d.branch)||!Number.isInteger(d.depth))throw Error('Invalid save metadata.');
+  if(['__proto__','prototype','constructor'].some(k=>Object.hasOwn(d,k))||!roles[d.player.role]||!Number.isInteger(d.turn)||d.turn<1||!Object.hasOwn(N.branches,d.branch)||!Number.isInteger(d.depth))throw Error('Invalid save metadata.');
   const p=d.player,l=d.levels[d.branch+':'+d.depth];
   if(!l||!Array.isArray(p.inventory)||p.inventory.length>52||!Array.isArray(p.stats)||p.stats.length!==6||!p.stats.every(Number.isFinite)||!['hp','maxHp','pw','maxPw','x','y','level','nutrition','gold','xp'].every(k=>Number.isFinite(p[k]))||typeof p.name!=='string'||p.name.length>24)throw Error('Invalid character state.');
-  const types=new Set(['rock','wall','secret','floor','corridor','up','down','branch','door','openDoor','fountain','altar','grave','sink','throne','water','lava','bars','tree']);
+  const types=new Set(['rock','wall','secret','floor','corridor','up','down','branch','door','openDoor','fountain','altar','grave','sink','throne','water','lava','bars','tree','portal']);
   for(let level of Object.values(d.levels)){
    if(!Array.isArray(level.tiles)||level.tiles.length!==21||level.tiles.some(row=>!Array.isArray(row)||row.length!==80)||!['rooms','monsters','items','traps','boulders'].every(k=>Array.isArray(level[k])))throw Error('Invalid dungeon state.');
    for(let y=0;y<21;y++)for(let x=0;x<80;x++){let t=level.tiles[y][x];if(!t||t.x!==x||t.y!==y||!types.has(t.type))throw Error('Invalid terrain in save.');}
@@ -262,7 +219,7 @@ class Game {
   }
   if(!Number.isInteger(p.x)||!Number.isInteger(p.y)||!l.tiles[p.y]?.[p.x])throw Error('Invalid player position.');
   if(d.autoOpenDoors===undefined)d.autoOpenDoors=true;
-  let game=Object.assign(Object.create(Game.prototype),d);game.rng=new RNG(d.rng.state);game.events=[];game.updateVision();return game;
+  let game=Object.assign(Object.create(Game.prototype),d);game.rng=new RNG(d.rng.state);game.events=[];game.migrate();game.updateVision();return game;
  }
 }
 N.RNG=RNG;N.Game=Game;N.DIRS=DIRS;N.roles=roles;N.lookup=lookup;N.monsterDef=monsterDef;N.distance=distance;

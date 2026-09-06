@@ -1,7 +1,7 @@
 // Unit-test the actual UI key dispatcher without a browser or third-party libraries.
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
-for(let f of ['catalog.js','game.js'])vm.runInThisContext(fs.readFileSync('src/'+f,'utf8'));
-global.document={getElementById:()=>({hidden:false,textContent:'',focus(){}})};global.window={};
+for(let f of ['catalog.js','world.js','game.js','systems.js','interactions.js','quests.js','equipment.js','save-validation.js','menus.js'])vm.runInThisContext(fs.readFileSync('src/'+f,'utf8'));
+global.document={body:{classList:{remove(){},add(){}}},getElementById:()=>({hidden:false,textContent:'',focus(){}})};global.window={};
 const source=fs.readFileSync('src/ui.js','utf8');vm.runInThisContext(source.slice(0,source.indexOf('try{window.app=new UI();'))+'N.UI=UI;})();');
 function ui(){let u=Object.create(NH.UI.prototype);u.game=new NH.Game('keys');u.game.level.monsters=[];u.game.level.items=[];u.game.level.traps=[];u.game.level.boulders=[];u.game.player.x=12;u.game.player.y=10;for(let y=7;y<=13;y++)for(let x=9;x<=15;x++)u.game.tile(x,y).type='floor';Object.assign(u,{audio:{start(){}},numberPad:true,modal:null,direction:null,prefix:null,counter:null,suspended:false,lastInput:0,refresh(){},toast(){},renderer:{}});return u;}
 function key(u,k,code='',extra={}){u.key({key:k,code:code||'Key'+k.toUpperCase(),target:{tagName:'CANVAS'},preventDefault(){},...extra});}

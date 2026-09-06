@@ -2,8 +2,6 @@
 
 Open [index.html](C:/Users/Sean/Documents/ChatGPT/nethack3d/index.html) in a current desktop browser with WebGL enabled. The game is self-contained: Three.js is vendored in `vendor/`, the content catalog is generated from the NetHack 3.6.6 release tables, and no build command or network connection is needed at runtime.
 
-The default movement layout is the number pad. `5` followed by a direction runs until a monster, object, doorway, stair, or dungeon feature is noticed. Doors auto-open by default; that behavior can be changed in Options. `m` plus a direction performs a safe move, and `g` plus a direction runs through known corridors.
-
 The verification suites can be run without a browser:
 
 ```powershell
