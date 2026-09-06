@@ -7,13 +7,13 @@ const aligned=['Lawful','Neutral','Chaotic'];
 N.races={Human:{alignments:aligned,max:[18,18,18,18,18,18]},Elf:{alignments:['Chaotic'],max:[18,18,16,20,20,18]},Dwarf:{alignments:['Lawful'],max:[18,20,20,16,16,16]},Gnome:{alignments:['Neutral'],max:[18,18,18,19,18,18]},Orc:{alignments:['Chaotic'],max:[18,18,18,16,16,16]}};
 N.roleChoices={Archeologist:['Human','Dwarf','Gnome'],Barbarian:['Human','Orc'],Caveman:['Human','Dwarf','Gnome'],Healer:['Human','Gnome'],Knight:['Human'],Monk:['Human'],Priest:['Human','Elf'],Ranger:['Human','Elf','Gnome','Orc'],Rogue:['Human','Orc'],Samurai:['Human'],Tourist:['Human'],Valkyrie:['Human','Dwarf'],Wizard:['Human','Elf','Gnome','Orc']};
 N.roleAlignments={Archeologist:['Lawful','Neutral'],Barbarian:['Neutral','Chaotic'],Caveman:['Lawful','Neutral'],Healer:['Neutral'],Knight:['Lawful'],Monk:aligned,Priest:aligned,Ranger:['Neutral','Chaotic'],Rogue:['Chaotic'],Samurai:['Lawful'],Tourist:['Neutral'],Valkyrie:['Lawful','Neutral'],Wizard:['Neutral','Chaotic']};
-N.genders=['Female','Male','Nonbinary'];N.orientations=['Unspecified','Straight','Gay','Lesbian','Bisexual','Pansexual','Asexual','Queer'];
+N.genders=['Female','Male','Nonbinary'];
 N.characterAlignments=(role,race)=>N.roleAlignments[role].filter(a=>N.races[race].alignments.includes(a));
 N.defaults={numberPad:true,autoOpenDoors:true,autopickup:true,sortInventory:true,pauseOnHunger:true,pauseOnBurden:true,pauseOnLowHP:true,sound:true,quality:'high'};
 N.parseConfig=text=>{let d=JSON.parse(text);if(!d||Array.isArray(d)||typeof d!=='object')throw Error('The configuration must be a JSON object.');const out={...N.defaults};for(const [k,v]of Object.entries(d)){if(!Object.hasOwn(out,k))throw Error('Unknown option: '+k);if(k==='quality'?!['high','low'].includes(v):typeof v!=='boolean')throw Error('Invalid value for '+k);out[k]=v;}return out;};
 P.configureCharacter=function(options={}){
  const p=this.player,race=options.race||'Human';if(!N.roleChoices[p.role].includes(race))throw Error('That race cannot follow this calling.');
- p.race=race;p.gender=N.genders.includes(options.gender)?options.gender:p.role==='Valkyrie'?'Female':'Male';p.orientation=N.orientations.includes(options.orientation)?options.orientation:'Unspecified';
+ p.race=race;p.gender=N.genders.includes(options.gender)?options.gender:p.role==='Valkyrie'?'Female':'Male';
  const choices=N.characterAlignments(p.role,race);p.align=choices.includes(options.align)?options.align:choices.includes(p.align)?p.align:choices[0];p.stats=p.stats.map((v,i)=>Math.min(v,N.races[race].max[i]));
  if(race==='Orc'&&!p.properties.includes('MR_POISON'))p.properties.push('MR_POISON');if(race!=='Human')p.properties.push('infravision');
  p.baseStats=[...p.stats];p.alignmentRecord=10;this.progress={};this.alerts=[];this.conditionState={hunger:this.hunger,burden:this.encumbrance,lowHP:false};
@@ -23,7 +23,7 @@ P.configureCharacter=function(options={}){
  if(p.role==='Priest')for(const i of p.inventory)if(i.name==='water')i.buc=1;
 };
 P.migrate=function(){
- const p=this.player;p.gender||='Unspecified';p.orientation||='Unspecified';p.baseStats||=[...p.stats];p.alignmentRecord??=10;this.progress||={};this.alerts||=[];this.conditionState||={hunger:this.hunger,burden:this.encumbrance,lowHP:false};
+ const p=this.player;delete p.orientation;p.gender||='Unspecified';p.baseStats||=[...p.stats];p.alignmentRecord??=10;this.progress||={};this.alerts||=[];this.conditionState||={hunger:this.hunger,burden:this.encumbrance,lowHP:false};
  for(const l of Object.values(this.levels)){l.shops||=[];l.theme||=N.themeFor(l.branch,l.depth);for(const t of l.tiles.flat())if(t.type==='altar'){t.align||='Neutral';t.facing??=0;}}
 };
 P.allInventory=function(items=this.player.inventory){return items.flatMap(i=>[i,...this.allInventory(i.contents||[])]);};
@@ -31,6 +31,10 @@ P.itemWeight=function(i){let contents=(i.contents||[]).reduce((s,j)=>s+this.item
 Object.defineProperty(P,'weight',{get(){return this.player.inventory.reduce((s,i)=>s+this.itemWeight(i),0)+Math.floor((this.player.gold+50)/100);}});
 Object.defineProperty(P,'encumbrance',{get(){const r=this.weight/this.capacity;return r>=3?'Overloaded':r>=2.5?'Overtaxed':r>=2?'Strained':r>=1.5?'Stressed':r>1?'Burdened':'';}});
 P.sortedInventory=function(items=this.player.inventory){const cats=['weapon','armor','amulet','ring','tool','food','potion','scroll','spellbook','wand','gem'];return [...items].sort((a,b)=>cats.indexOf(a.category)-cats.indexOf(b.category)||this.label(a).localeCompare(this.label(b))||a.id-b.id);};
+P.shopItem=function(type='general'){
+ const cats={general:['weapon','armor','food','potion','scroll','wand','ring','gem','tool','spellbook','amulet'],armor:['armor','weapon'],book:['scroll','spellbook'],liquor:['potion'],weapons:['weapon','armor'],food:['food'],jeweler:['ring','gem','amulet'],apparel:['wand','tool','armor'],hardware:['tool'], 'rare books':['spellbook','scroll'],'health food':['food','potion','scroll']};
+ const cat=this.rng.pick(cats[type]||cats.general),defs=N.ITEMS.filter(i=>i.category===cat&&i.prob>0&&i.name!=='Amulet of Yendor');if(!defs.length)return this.randomItem();const d=this.rng.weighted(defs,x=>x.prob);return this.createItem(d.name,d.category,{count:d.ammo?this.rng.int(3,10):1});
+};
 P.createItem=function(name,category,extra={}){const i=base.createItem.call(this,name,category,extra);if(this.def(i).container&&!['bag of tricks'].includes(name))i.contents=extra.contents||[];if(/horn|camera|marker|tinning kit|grease|bag of tricks|magic flute|magic harp|crystal ball/.test(name)&&extra.charges===undefined)i.charges=this.rng.int(4,12);return i;};
 P.shopFor=function(p=this.player,l=this.level){const room=l.rooms.find(r=>r.shop&&p.x>=r.x&&p.x<r.x+r.w&&p.y>=r.y&&p.y<r.y+r.h);return room&&l.shops?.find(s=>s.room===room.id);};
 P.findShop=function(id){for(const l of Object.values(this.levels)){const shop=l.shops?.find(s=>s.id===id);if(shop)return {shop,level:l,keeper:l.monsters.find(m=>m.shopId===id&&m.shopkeeper&&m.hp>0)};}return null;};
