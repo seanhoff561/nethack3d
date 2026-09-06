@@ -32,11 +32,11 @@ const lookup=(name,cat)=>N.ITEMS.find(i=>i.name===name&&(!cat||i.category===cat)
 const monsterDef=name=>N.MONSTERS.find(m=>m.name===name);
 const distance=(a,b)=>Math.max(Math.abs(a.x-b.x),Math.abs(a.y-b.y));
 class Game {
- constructor(seed='YENDOR',role='Knight',name='Adventurer',options={}){
+ constructor(seed='YENDOR',role='Knight',name='Arthur',options={}){
   this.version=1;this.seed=String(seed);this.rng=new RNG(seed);this.uid=0;this.turn=1;this.depth=1;this.branch='Dungeons';this.levels={};this.messages=[];this.events=[];this.identified={};this.appearances={};this.genocided=[];this.dead=false;this.won=false;this.prayerTurn=-1000;this.autopickup=true;this.autoOpenDoors=true;this.explore=false;this.conduct={kills:0,food:0,prayers:0};
   for(const cat of ['potion','scroll','wand','ring','spellbook','amulet']){let defs=N.ITEMS.filter(i=>i.category===cat&&i.appearance&&!(cat==='potion'&&i.name==='water')),shuffled=this.rng.shuffle(defs.map(i=>i.appearance));defs.forEach((d,i)=>this.appearances[cat+':'+d.name]=shuffled[i]);}this.appearances['potion:water']='clear';
   const r=roles[role]||roles.Knight;
-  this.player={id:0,x:0,y:0,hp:r.hp,maxHp:r.hp,pw:r.pw,maxPw:r.pw,role:roles[role]?role:'Knight',name:name.slice(0,24)||'Adventurer',race:'Human',align:r.align,stats:[...r.stats],rank:r.rank,xp:0,level:1,gold:r.gold||0,nutrition:900,inventory:[],equipment:{},properties:[...(r.props||[])],status:{},spells:(r.spells||[]).map(n=>({name:n,knowledge:20000})),luck:0,facing:[0,1]};
+  this.player={id:0,x:0,y:0,hp:r.hp,maxHp:r.hp,pw:r.pw,maxPw:r.pw,role:roles[role]?role:'Knight',name:name.slice(0,24)||'Arthur',race:'Human',align:r.align,stats:[...r.stats],rank:r.rank,xp:0,level:1,gold:r.gold||0,nutrition:900,inventory:[],equipment:{},properties:[...(r.props||[])],status:{},spells:(r.spells||[]).map(n=>({name:n,knowledge:20000})),luck:0,facing:[0,1]};
   for(const [n,c,en=0,count=1]of r.gear){let it=this.createItem(n,c,{enchant:en,count,known:true,buc:0,bucKnown:true});this.addItem(it);if(c==='weapon'&&!this.player.equipment.weapon)this.player.equipment.weapon=it.id;if(c==='armor')this.player.equipment[lookup(n,c)?.slot||'body']=it.id;}
   this.configureCharacter(options);this.getLevel();const p=this.level.up;this.player.x=p.x;this.player.y=p.y;
   const petTile=DIRS.map(([dx,dy])=>({x:p.x+dx,y:p.y+dy})).find(p=>this.passable(p.x,p.y));if(petTile)this.spawn(role==='Knight'?'pony':role==='Wizard'?'kitten':'little dog',petTile.x,petTile.y,{tame:true,name:'Hachi'});

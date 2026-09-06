@@ -31,7 +31,7 @@ N.generateLevel=function(g,depth,branch){
   const target=rng.next()<.08?4:rng.next()<.08?11:rng.int(5,10),clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
   const wallifyRoom=r=>{for(let yy=r.y-1;yy<=r.y+r.h;yy++)for(let xx=r.x-1;xx<=r.x+r.w;xx++)if(tile(xx,yy)?.type==='rock')put(xx,yy,'wall',{roomWall:true});};
  for(let tries=0;tries<900&&l.rooms.length<target;tries++){
-   const compact=rng.next()<.84,w=compact?rng.int(2,9):rng.int(10,13),h=compact?rng.int(3,6):rng.int(7,8),x=rng.int(2,W-w-2),y=rng.int(2,H-h-2),r={id:l.rooms.length,x,y,w,h,cx:x+Math.floor(w/2),cy:y+Math.floor(h/2),lit:depth<4||rng.next()<.7,doors:[]};
+   const first=l.rooms.length===0,compact=rng.next()<.84,w=first?rng.int(8,10):compact?rng.int(2,9):rng.int(10,13),h=first?rng.int(5,6):compact?rng.int(3,6):rng.int(7,8),x=rng.int(2,W-w-2),y=rng.int(2,H-h-2),r={id:l.rooms.length,x,y,w,h,cx:x+Math.floor(w/2),cy:y+Math.floor(h/2),lit:depth<4||rng.next()<.7,doors:[]};
    if(l.rooms.every(a=>r.x+r.w+2<a.x||a.x+a.w+2<r.x||r.y+r.h+2<a.y||a.y+a.h+2<r.y)){l.rooms.push(r);for(let yy=r.y;yy<r.y+r.h;yy++)for(let xx=r.x;xx<r.x+r.w;xx++)put(xx,yy,'floor',{room:r.id});wallifyRoom(r);}
  }
  // Connect every room to its nearest earlier room, then add a few loops.
