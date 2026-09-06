@@ -6,6 +6,7 @@ N.roleAppearance={
  Archeologist:{color:0xa78350,hat:'fedora',weapon:'whip',pack:true},Barbarian:{color:0x936348,hat:'horns',weapon:'axe',fur:true},Caveman:{color:0x816d4b,weapon:'club',fur:true},Healer:{color:0xe3d7b6,hat:'cap',weapon:'staff',robe:true,medicine:true},Knight:{color:0x597499,hat:'visor',weapon:'sword',shield:true,armored:true},Monk:{color:0xc17935,robe:true,beads:true},Priest:{color:0xd3cab6,hat:'mitre',weapon:'mace',robe:true,holy:true},Ranger:{color:0x567552,hat:'hood',weapon:'bow',quiver:true},Rogue:{color:0x565564,hat:'hood',weapon:'daggers',mask:true},Samurai:{color:0x963e3b,hat:'kabuto',weapon:'katana',armored:true},Tourist:{color:0x56a4a0,hat:'sunhat',weapon:'camera',pack:true,flowers:true},Valkyrie:{color:0x527c99,hat:'wings',weapon:'sword',shield:true,armored:true},Wizard:{color:0x655495,hat:'pointed',weapon:'staff',robe:true,book:true}
 };
 N.buildHero=function(r,p){
+ if(p.role==='Knight'&&typeof r.humanoid==='function')return r.humanoid('hero',0,true);
  const T=globalThis.THREE,a=N.roleAppearance[p.role],g=new T.Group(),body=new T.Group(),limbs=[];g.add(body);
  const cloth=r.material(a.color),dark=r.material(new T.Color(a.color).multiplyScalar(.55)),skin=r.material(p.race==='Orc'?0x86916a:p.race==='Dwarf'?0xb79276:p.race==='Elf'?0xd4bda0:0xc5a388),hair=r.material(p.race==='Elf'?0xd0b675:p.race==='Dwarf'?0x865032:0x493b32),armor=a.armored?r.mats.metal:cloth;
  const mesh=(geo,mat,pos,scale,rot)=>r.mesh(geo,mat,body,pos,scale,rot);
