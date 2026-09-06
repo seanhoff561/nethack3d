@@ -12,8 +12,8 @@ N.buildHero=function(r,p){
  for(const s of [-1,1]){const leg=new T.Group();leg.position.set(s*.115,.43,0);body.add(leg);r.mesh('cyl',dark,leg,[0,-.12,0],[.074,.29,.075]);r.mesh('box','leather',leg,[0,-.31,.05],[.15,.13,.22]);limbs.push(leg);}
  mesh('sphere',armor,[0,.73,0],[.22,.28,.15]);if(a.robe)mesh('cone',cloth,[0,.52,0],[.31,.78,.26]);if(a.fur){mesh('sphere','leather',[0,.48,0],[.24,.15,.17]);for(let n=0;n<7;n++)mesh('ico','leather',[(n-3)*.062,.9,0],[.08,.09,.19]);}
  mesh('box','leather',[0,.54,.01],[.4,.07,.29]);mesh('box','gold',[0,.54,.17],[.065,.06,.03]);mesh('cyl',skin,[0,1,0],[.064,.12,.065]);mesh('sphere',skin,[0,1.14,.01],[.135,.17,.13]);
- if(p.role!=='Monk'){mesh('sphere',hair,[0,1.21,-.055],[.14,.12,.1]);if(p.gender==='Female')mesh('cyl',hair,[.1,1.05,-.13],[.045,.34,.045],[0,0,.13]);}
- if(p.race==='Dwarf'&&p.gender==='Male')mesh('cone',hair,[0,1,.1],[.11,.32,.08],[0,0,Math.PI]);
+ if(p.role!=='Monk')mesh('sphere',hair,[0,1.21,-.055],[.14,.12,.1]);
+ if(p.race==='Dwarf')mesh('cone',hair,[0,1,.1],[.11,.32,.08],[0,0,Math.PI]);
  if(['Elf','Orc'].includes(p.race))for(let s of [-1,1])mesh('cone',skin,[s*.16,1.14,0],[.04,.17,.05],[0,0,-s*1.2]);
  for(let s of [-1,1])mesh('sphere','black',[s*.05,1.17,.13],[.015,.012,.009]);
  if(a.mask)mesh('box',dark,[0,1.10,.132],[.22,.075,.025]);

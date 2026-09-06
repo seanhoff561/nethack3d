@@ -7,13 +7,12 @@ const aligned=['Lawful','Neutral','Chaotic'];
 N.races={Human:{alignments:aligned,max:[18,18,18,18,18,18]},Elf:{alignments:['Chaotic'],max:[18,18,16,20,20,18]},Dwarf:{alignments:['Lawful'],max:[18,20,20,16,16,16]},Gnome:{alignments:['Neutral'],max:[18,18,18,19,18,18]},Orc:{alignments:['Chaotic'],max:[18,18,18,16,16,16]}};
 N.roleChoices={Archeologist:['Human','Dwarf','Gnome'],Barbarian:['Human','Orc'],Caveman:['Human','Dwarf','Gnome'],Healer:['Human','Gnome'],Knight:['Human'],Monk:['Human'],Priest:['Human','Elf'],Ranger:['Human','Elf','Gnome','Orc'],Rogue:['Human','Orc'],Samurai:['Human'],Tourist:['Human'],Valkyrie:['Human','Dwarf'],Wizard:['Human','Elf','Gnome','Orc']};
 N.roleAlignments={Archeologist:['Lawful','Neutral'],Barbarian:['Neutral','Chaotic'],Caveman:['Lawful','Neutral'],Healer:['Neutral'],Knight:['Lawful'],Monk:aligned,Priest:aligned,Ranger:['Neutral','Chaotic'],Rogue:['Chaotic'],Samurai:['Lawful'],Tourist:['Neutral'],Valkyrie:['Lawful','Neutral'],Wizard:['Neutral','Chaotic']};
-N.genders=['Female','Male','Nonbinary'];
 N.characterAlignments=(role,race)=>N.roleAlignments[role].filter(a=>N.races[race].alignments.includes(a));
 N.defaults={numberPad:true,autoOpenDoors:true,autopickup:true,sortInventory:true,pauseOnHunger:true,pauseOnBurden:true,pauseOnLowHP:true,sound:true,quality:'high'};
 N.parseConfig=text=>{let d=JSON.parse(text);if(!d||Array.isArray(d)||typeof d!=='object')throw Error('The configuration must be a JSON object.');const out={...N.defaults};for(const [k,v]of Object.entries(d)){if(!Object.hasOwn(out,k))throw Error('Unknown option: '+k);if(k==='quality'?!['high','low'].includes(v):typeof v!=='boolean')throw Error('Invalid value for '+k);out[k]=v;}return out;};
 P.configureCharacter=function(options={}){
  const p=this.player,race=options.race||'Human';if(!N.roleChoices[p.role].includes(race))throw Error('That race cannot follow this calling.');
- p.race=race;p.gender=N.genders.includes(options.gender)?options.gender:p.role==='Valkyrie'?'Female':'Male';
+ p.race=race;delete p.gender;
  const choices=N.characterAlignments(p.role,race);p.align=choices.includes(options.align)?options.align:choices.includes(p.align)?p.align:choices[0];p.stats=p.stats.map((v,i)=>Math.min(v,N.races[race].max[i]));
  if(race==='Orc'&&!p.properties.includes('MR_POISON'))p.properties.push('MR_POISON');if(race!=='Human')p.properties.push('infravision');
  p.baseStats=[...p.stats];p.alignmentRecord=10;this.progress={};this.alerts=[];this.conditionState={hunger:this.hunger,burden:this.encumbrance,lowHP:false};
@@ -23,7 +22,7 @@ P.configureCharacter=function(options={}){
  if(p.role==='Priest')for(const i of p.inventory)if(i.name==='water')i.buc=1;
 };
 P.migrate=function(){
- const p=this.player;delete p.orientation;p.gender||='Unspecified';p.baseStats||=[...p.stats];p.alignmentRecord??=10;this.progress||={};this.alerts||=[];this.conditionState||={hunger:this.hunger,burden:this.encumbrance,lowHP:false};
+ const p=this.player;delete p.orientation;delete p.gender;p.baseStats||=[...p.stats];p.alignmentRecord??=10;this.progress||={};this.alerts||=[];this.conditionState||={hunger:this.hunger,burden:this.encumbrance,lowHP:false};
  for(const l of Object.values(this.levels)){l.shops||=[];l.theme||=N.themeFor(l.branch,l.depth);for(const t of l.tiles.flat())if(t.type==='altar'){t.align||='Neutral';t.facing??=0;}}
 };
 P.allInventory=function(items=this.player.inventory){return items.flatMap(i=>[i,...this.allInventory(i.contents||[])]);};
