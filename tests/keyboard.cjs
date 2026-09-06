@@ -1,0 +1,21 @@
+// Unit-test the actual UI key dispatcher without a browser or third-party libraries.
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+for(let f of ['catalog.js','game.js'])vm.runInThisContext(fs.readFileSync('src/'+f,'utf8'));
+global.document={getElementById:()=>({hidden:false,textContent:'',focus(){}})};global.window={};
+const source=fs.readFileSync('src/ui.js','utf8');vm.runInThisContext(source.slice(0,source.indexOf('try{window.app=new UI();'))+'N.UI=UI;})();');
+function ui(){let u=Object.create(NH.UI.prototype);u.game=new NH.Game('keys');u.game.level.monsters=[];u.game.level.items=[];u.game.level.traps=[];u.game.level.boulders=[];u.game.player.x=12;u.game.player.y=10;for(let y=7;y<=13;y++)for(let x=9;x<=15;x++)u.game.tile(x,y).type='floor';Object.assign(u,{audio:{start(){}},numberPad:true,modal:null,direction:null,prefix:null,counter:null,suspended:false,lastInput:0,refresh(){},toast(){},renderer:{}});return u;}
+function key(u,k,code='',extra={}){u.key({key:k,code:code||'Key'+k.toUpperCase(),target:{tagName:'CANVAS'},preventDefault(){},...extra});}
+let passed=0;function test(name,fn){fn();console.log('PASS '+name);passed++;}
+test('All eight physical numpad keys with Num Lock on',()=>{for(let [n,d]of Object.entries({'1':[-1,1],'2':[0,1],'3':[1,1],'4':[-1,0],'6':[1,0],'7':[-1,-1],'8':[0,-1],'9':[1,-1]})){let u=ui();key(u,n,'Numpad'+n);assert.deepEqual([u.game.player.x,u.game.player.y],[12+d[0],10+d[1]]);assert.equal(u.game.turn,2);}});
+test('All eight physical numpad keys with Num Lock off',()=>{for(let [n,k,d]of [['1','End',[-1,1]],['2','ArrowDown',[0,1]],['3','PageDown',[1,1]],['4','ArrowLeft',[-1,0]],['6','ArrowRight',[1,0]],['7','Home',[-1,-1]],['8','ArrowUp',[0,-1]],['9','PageUp',[1,-1]]]){let u=ui();key(u,k,'Numpad'+n);assert.deepEqual([u.game.player.x,u.game.player.y],[12+d[0],10+d[1]]);}});
+test('Numpad center waits with Num Lock off',()=>{let u=ui();key(u,'Clear','Numpad5');assert.equal(u.game.turn,2);assert.equal(u.game.player.x,12);});
+test('Numpad decimal waits without interpreting Delete',()=>{let u=ui();key(u,'Delete','NumpadDecimal');assert.equal(u.game.turn,2);});
+test('Vi layout maps k north while number pad layout prompts kick',()=>{let u=ui();u.numberPad=false;key(u,'k');assert.equal(u.game.player.y,9);let v=ui();key(v,'k');assert.ok(v.direction);assert.equal(v.game.turn,1);});
+test('Direction prompt consumes no turn until a valid door action',()=>{let u=ui();u.game.tile(13,10).type='door';u.game.tile(13,10).locked=false;key(u,'o');assert.equal(u.game.turn,1);assert.ok(u.direction);key(u,'6','Numpad6');assert.equal(u.game.tile(13,10).type,'openDoor');assert.equal(u.game.turn,2);assert.equal(u.direction,null);});
+test('Escape cancels prompts without advancing turns',()=>{let u=ui();key(u,'o');key(u,'Escape','Escape');assert.equal(u.direction,null);assert.equal(u.game.turn,1);});
+test('Paralysis prevents numpad movement',()=>{let u=ui();u.game.player.status.paralysis=5;key(u,'6','Numpad6');assert.equal(u.game.player.x,12);assert.equal(u.game.turn,2);assert.equal(u.game.player.status.paralysis,4);});
+test('Inventory command is free and retains original binding',()=>{let u=ui(),called=false;u.inventory=()=>called=true;key(u,'i');assert.ok(called);assert.equal(u.game.turn,1);});
+test('Count prefix gathers digits instead of moving',()=>{let u=ui();key(u,'n');key(u,'1','Digit1');key(u,'0','Digit0');assert.equal(u.counter,'10');assert.equal(u.game.player.x,12);assert.equal(u.game.turn,1);let args;u.repeatAction=(...a)=>args=a;key(u,'s');assert.deepEqual(args,['s',10]);});
+test('Modal inventory letters never move the player',()=>{let u=ui(),selected;u.modal={onKey:k=>selected=k};key(u,'6','Numpad6');assert.equal(selected,'6');assert.equal(u.game.player.x,12);assert.equal(u.game.turn,1);});
+test('Movement prefix m does not attack an adjacent hostile',()=>{let u=ui();let m=u.game.spawn('goblin',13,10,{hp:100});key(u,'m');key(u,'6','Numpad6');assert.equal(m.hp,100);assert.equal(u.game.player.x,12);assert.equal(u.game.turn,1);});
+console.log(`\n${passed} keyboard checks passed.`);
