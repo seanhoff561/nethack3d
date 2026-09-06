@@ -78,9 +78,9 @@ class Renderer {
   this.mesh('sphere',robeDark,body,[0,.92,0],[.22,.19,.16]);this.mesh('cyl',trim,body,[0,.76,.02],[.23,.028,.23]);
   this.mesh('cyl',skin,body,[0,1.09,0],[.065,.11,.065]);this.mesh('sphere',skin,body,[0,1.23,.01],[.14,.17,.13]);
   // Pointed hood and a shadowed brim create a readable wizard silhouette.
-  this.mesh('cone',robeDark,body,[0,1.38,-.01],[.24,.43,.24]);this.mesh('torus',robe,body,[0,1.22,.015],[.18,.18,.18],[Math.PI/2,0,0]);
+  this.mesh('cone',robeDark,body,[0,1.38,-.01],[.24,.43,.24]);this.mesh('torus',robe,body,[0,1.22,.015],[.23,.23,.23],[Math.PI/2,0,0]);
   for(const sign of [-1,1])this.mesh('sphere','black',body,[sign*.052,1.23,.13],[.018,.014,.01]);
-  for(const sign of [-1,1]){const arm=new T.Group();arm.position.set(sign*.24,.90,0);body.add(arm);this.mesh('cyl',robe,arm,[sign*.02,-.12,.01],[.075,.30,.075],[0,0,sign*.16]);this.mesh('sphere',skin,arm,[sign*.05,-.29,.08],[.064,.06,.06]);limbs.push(arm);if(sign===1){const staff=new T.Group();staff.position.set(.10,-.16,.10);arm.add(staff);this.mesh('cyl','wood',staff,[0,.34,0],[.028,.68,.028]);this.mesh('sphere','rune',staff,[0,.73,0],[.075,.075,.075]);this.mesh('torus','gold',staff,[0,.73,0],[.10,.10,.10],[Math.PI/2,0,0]);g.userData.weapon=arm;}}
+  for(const sign of [-1,1]){const arm=new T.Group();arm.position.set(sign*.24,.90,0);body.add(arm);this.mesh('cyl',robe,arm,[sign*.02,-.12,.01],[.075,.30,.075],[0,0,sign*.16]);this.mesh('sphere',skin,arm,[sign*.05,-.29,.08],[.064,.06,.06]);limbs.push(arm);if(sign===1){const staff=new T.Group();staff.position.set(.10,-.32,.10);arm.add(staff);this.mesh('cyl','wood',staff,[0,.34,0],[.028,.68,.028]);this.mesh('sphere','rune',staff,[0,.73,0],[.075,.075,.075]);this.mesh('torus','gold',staff,[0,.73,0],[.10,.10,.10],[Math.PI/2,0,0]);g.userData.weapon=arm;}}
   // A small spellbook and belt make the silhouette read as a class model even
   // when the camera is pulled back.
   this.mesh('box','leather',body,[0,.64,.26],[.22,.18,.06]);this.mesh('box',trim,body,[0,.64,.295],[.15,.02,.012]);
